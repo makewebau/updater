@@ -1,0 +1,21 @@
+{
+    "name": "makeweb/updater",
+    "autoload": {
+        "psr-4": {
+            "MakeWeb\\Updater\\": "src/"
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "4.*",
+        "10up/wp_mock": "dev-dev"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MakeWeb\\Updater\\Tests\\": "tests/"
+        }
+    },
+    "require": {
+        "illuminate/support": "^5.4",
+        "symfony/var-dumper": "^3.3"
+    }
+}
