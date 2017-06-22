@@ -21,10 +21,9 @@ class BootTest extends \PHPUnit_Framework_TestCase
     {
         WP_Mock::expectActionAdded('admin_init', \Mockery::any());
 
-        $updater = (new \MakeWeb\Updater\Client)
+        $updater = (new \MakeWeb\Updater\Client())
             ->setPluginFilePath(__FILE__)
             ->setUpdateServerUrl('http://optimusdivi.com')
             ->boot();
-
     }
 }

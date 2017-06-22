@@ -13,11 +13,11 @@ class RegistersPluginSettings
 
     public function boot()
     {
-        add_action('admin_menu', function() {
+        add_action('admin_menu', function () {
             $this->registerAdminMenu();
         });
 
-        add_action('admin_init', function() {
+        add_action('admin_init', function () {
             $this->registerSettings();
             $this->registerSettingsFields();
         });
@@ -57,14 +57,14 @@ class RegistersPluginSettings
     {
         $plugin = $this->plugin;
 
-        require (__DIR__.'/views/license-page.php');
+        require __DIR__.'/views/license-page.php';
     }
 
     public function displayLicenseField($existingFields)
     {
         $plugin = $this->plugin;
 
-        require (__DIR__.'/views/license-field.php');
+        require __DIR__.'/views/license-field.php';
     }
 
     public function displayNotices()
