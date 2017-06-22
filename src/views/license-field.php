@@ -15,7 +15,8 @@
             />
         </div>
         <div class="activate-button-container">
-            <?php if( $plugin->status() !== false && $plugin->status() == 'valid' ) { ?>
+            <?php if ($plugin->status() !== false && $plugin->status() == 'valid') {
+    ?>
                 <span style="color:green;"><?php _e('active'); ?></span>
                 <?php wp_nonce_field($plugin->activationActionName(), $plugin->activationNonceKey()); ?>
                 <input
@@ -24,15 +25,17 @@
                     name="edd_license_deactivate"
                     value="<?php _e('Deactivate License') ?>"
                 />
-            <?php } else {
-                wp_nonce_field($plugin->activationActionName(), $plugin->activationNonceKey()); ?>
+            <?php
+} else {
+        wp_nonce_field($plugin->activationActionName(), $plugin->activationNonceKey()); ?>
                 <input
                     type="submit"
                     class="button-secondary"
                     name="edd_license_activate"
                     value="<?php _e('Activate License'); ?>"
                 />
-            <?php } ?>
+            <?php
+    } ?>
         </div>
     </form>
 </div>

@@ -42,14 +42,14 @@ class HandlesActivatingPlugins
         // Call the API on the update server
         $response = wp_remote_post(
             $this->plugin->updateServerUrl(), [
-                'timeout' => 15,
+                'timeout'   => 15,
                 'sslverify' => false,
-                'body' => [
+                'body'      => [
                     'edd_action' => 'activate_license',
                     'license'    => $newLicenseKey,
                     'item_name'  => urlencode($this->plugin->name()),
-                    'url'        => home_url()
-                ]
+                    'url'        => home_url(),
+                ],
             ]
         );
 
@@ -97,7 +97,7 @@ class HandlesActivatingPlugins
     {
         wp_redirect(add_query_arg([
             'sl_activation' => 'false',
-            'message' => urlencode($message)
+            'message'       => urlencode($message),
         ],
             $this->plugin->licensePageUrl()
         ));
@@ -129,7 +129,7 @@ class HandlesActivatingPlugins
         }
 
         if ($licenseData->error == 'item_name_mismatch') {
-            $this->redirectWithErrorMessage(sprintf(__('This appears to be an invalid license key for %s.' ), $this->plugin->name()));
+            $this->redirectWithErrorMessage(sprintf(__('This appears to be an invalid license key for %s.'), $this->plugin->name()));
         }
 
         if ($licenseData->error == 'no_activations_left') {
@@ -143,28 +143,31 @@ class HandlesActivatingPlugins
     {
         global $wp_version;
 
-        $license = trim( get_option( 'edd_sample_license_key' ) );
+        $license = trim(get_option('edd_sample_license_key'));
 
-        $api_params = array(
+        $api_params = [
             'edd_action' => 'check_license',
-            'license' => $license,
-            'item_name' => urlencode($this->getPluginName()),
-            'url'       => home_url()
-        );
+            'license'    => $license,
+            'item_name'  => urlencode($this->getPluginName()),
+            'url'        => home_url(),
+        ];
 
         // Call the custom API.
-        $response = wp_remote_post( $this->updateServerUrl, array( 'timeout' => 15, 'sslverify' => false, 'body' => $api_params ) );
+        $response = wp_remote_post($this->updateServerUrl, ['timeout' => 15, 'sslverify' => false, 'body' => $api_params]);
 
-        if ( is_wp_error( $response ) )
+        if (is_wp_error($response)) {
             return false;
+        }
 
-        $license_data = json_decode( wp_remote_retrieve_body( $response ) );
+        $license_data = json_decode(wp_remote_retrieve_body($response));
 
-        if( $license_data->license == 'valid' ) {
-            echo 'valid'; exit;
+        if ($license_data->license == 'valid') {
+            echo 'valid';
+            exit;
             // this license is still valid
         } else {
-            echo 'invalid'; exit;
+            echo 'invalid';
+            exit;
             // this license is no longer valid
         }
     }

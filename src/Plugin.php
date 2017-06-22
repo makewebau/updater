@@ -137,7 +137,7 @@ class Plugin
     {
         global $submenu;
 
-        return count(array_filter($submenu['plugins.php'], function($submenuPage) {
+        return count(array_filter($submenu['plugins.php'], function ($submenuPage) {
             return $submenuPage[0] == $this->licensePageTitle();
         })) > 0;
     }
@@ -155,10 +155,10 @@ class Plugin
     {
         if (is_null($this->data)) {
             $this->data = get_file_data($this->path(), [
-                'Name' => 'Plugin Name',
+                'Name'       => 'Plugin Name',
                 'AuthorName' => 'Author Name',
-                'AuthorURI' => 'Author URI',
-                'Version' => 'Version'
+                'AuthorURI'  => 'Author URI',
+                'Version'    => 'Version',
             ]);
         }
 
