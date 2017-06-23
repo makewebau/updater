@@ -84,11 +84,7 @@ class HandlesUpdatingPlugins
         $versionInfo = $this->getCachedVersionInfo();
 
         if ($versionInfo === false) {
-            $versionInfo = $this->apiClient->call('plugin_latest_version', [
-                'slug' => $this->plugin->slug(),
-                'beta' => $this->beta,
-            ]);
-
+            $versionInfo = $this->apiClient->getLatestVersion();
             $this->setVersionInfoCache($versionInfo);
         }
 

@@ -116,6 +116,11 @@ class ApiClient
         ]);
     }
 
+    public function getLatestVersion()
+    {
+        return $this->call('get_version');
+    }
+
     protected function handleErrorResponse(WP_Error $error)
     {
         $errors = [];
