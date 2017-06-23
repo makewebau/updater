@@ -51,27 +51,20 @@ class ApiClient
      *
      * @return false|object
      */
-    public function call($action, $data)
+    public function call($action = 'get_version', $requestData = [])
     {
         global $wp_version;
-
-        $data = array_merge($this->api_data, $data);
 
         if ($this->plugin->updateServerUrl() == trailingslashit(home_url())) {
             throw new \Exception('Plugin server must be another server');
         }
 
-        $requestData = [
-            'edd_action' => 'get_version',
+        $requestData = array_merge([
+            'edd_action' => $action,
             'license'    => $this->plugin->licenseKey(),
-            'item_name'  => $this->plugin->basename(),
-            'item_id'    => false,
+            'item_name'  => $this->plugin->name(),
             'version'    => $this->plugin->version(),
-            'slug'       => $this->plugin->slug(),
-            'author'     => $this->plugin->vendorName(),
-            'url'        => home_url(),
-            'beta'       => false,
-        ];
+        ], $requestData);
 
         $response = wp_remote_post($this->plugin->updateServerUrl(), [
             'timeout'   => 15,
