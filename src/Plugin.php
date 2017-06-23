@@ -45,7 +45,7 @@ class Plugin
 
     public function basename()
     {
-        return plugin_basename($this->name());
+        return plugin_basename($this->path());
     }
 
     public function path()
