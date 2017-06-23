@@ -33,14 +33,13 @@ class HandlesUpdatingPlugins
 
             $edd_plugin_data[$this->plugin->slug()] = $this->api_data;
         });
-            // Set up hooks.
-            add_filter('plugins_api', [$this, 'pluginsApiFilter'], 10, 3);
+
+        // Set up hooks.
+        add_filter('plugins_api', [$this, 'pluginsApiFilter'], 10, 3);
         add_action('admin_init', [$this, 'showChangelog']);
-
         add_filter('pre_set_site_transient_update_plugins', [$this, 'checkIfUpdateIsAvailable']);
-
-            // Replace action for what we display after the plugin updates
-            remove_action('after_plugin_row_'.$this->plugin->basename(), 'wp_plugin_update_row', 10);
+        // Replace action for what we display after the plugin updates
+        remove_action('after_plugin_row_'.$this->plugin->basename(), 'wp_plugin_update_row', 10);
         add_action('after_plugin_row_'.$this->plugin->basename(), [$this, 'showUpdateNotification'], 10, 2);
     }
 
