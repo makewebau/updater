@@ -156,7 +156,7 @@ class Plugin
         if (is_null($this->data)) {
             $this->data = get_file_data($this->path(), [
                 'Name'       => 'Plugin Name',
-                'AuthorName' => 'Author Name',
+                'AuthorName' => 'Author',
                 'AuthorURI'  => 'Author URI',
                 'Version'    => 'Version',
             ]);
