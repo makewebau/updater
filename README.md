@@ -37,12 +37,16 @@ The update client pulls all neccessarry configuration from main plugin file, dra
 For example, take the following header comment block:
 
     /*
-    Plugin Name: MyVendor Thingamajiggy
+    Plugin Name: MyCompany Thingamajiggy
     Description: Respiculate your stultiloquence
     Version: 1.0.0
-    Author: Myfirstname Mylastname
+    Author: MyCompany
     Author URI: http://example.org
     */
 
 
 The package will look for an update server at `example.org` and will attempt to find updates available based on the given plugin name, and version.
+
+## Wordpress Settings Page
+
+The package will automatically create a settings page under the `Plugins` menu called `{MyCompany} Plugin Licenses`, where the value of `{MyCompany}` is drawn from the `Author` header from the main plugin file. If multiple plugins are installed which use this package, plugins with the same `Author` name will appear on the same page. Each plugin will have a text input field where a license key can be entered to allow the user to update their plugin with updates from the update server.
