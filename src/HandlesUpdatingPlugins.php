@@ -211,7 +211,7 @@ class HandlesUpdatingPlugins
             return;
         }
 
-        if (!is_multisite()) {
+        if (is_multisite()) {
             return;
         }
 
