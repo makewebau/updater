@@ -38,9 +38,14 @@ class HandlesUpdatingPlugins
         add_filter('plugins_api', [$this, 'pluginsApiFilter'], 10, 3);
         add_action('admin_init', [$this, 'showChangelog']);
         add_filter('pre_set_site_transient_update_plugins', [$this, 'checkIfUpdateIsAvailable']);
-        // Replace action for what we display after the plugin updates
-        remove_action('after_plugin_row_'.$this->plugin->basename(), 'wp_plugin_update_row', 10);
-        add_action('after_plugin_row_'.$this->plugin->basename(), [$this, 'showUpdateNotification'], 10, 2);
+
+        // Replace action for what we display plugin update notification under the plugin row
+        add_action('load-plugins.php', function () {
+            $pluginBasename = $this->plugin->basename();
+
+            remove_action("after_plugin_row_$pluginBasename", 'wp_plugin_update_row', 10);
+            add_action("after_plugin_row_$pluginBasename", [$this, 'showUpdateNotification'], 10, 2);
+        }, 25);
     }
 
     /**
