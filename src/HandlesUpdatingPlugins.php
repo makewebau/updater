@@ -321,8 +321,8 @@ class HandlesUpdatingPlugins
                 'edd_action' => 'get_version',
                 'item_name'  => isset($data['item_name']) ? $data['item_name'] : false,
                 'item_id'    => isset($data['item_id']) ? $data['item_id'] : false,
+                'author'     => isset($data['author']) ? $data['author'] : false,
                 'slug'       => $_REQUEST['slug'],
-                'author'     => $data['author'],
                 'url'        => home_url(),
                 'beta'       => !empty($data['beta']),
             ];
@@ -348,8 +348,8 @@ class HandlesUpdatingPlugins
             $this->setVersionInfoCache($versionInfo, $cache_key);
         }
 
-        if (!empty($versionInfo) && isset($versionInfo->sections['changelog'])) {
-            echo '<div style="background:#fff;padding:10px;">'.$versionInfo->sections['changelog'].'</div>';
+        if (!empty($versionInfo) && isset($versionInfo->sections->changelog)) {
+            echo '<div style="background:#fff;padding:10px;">'.$versionInfo->sections->changelog.'</div>';
         }
 
         exit;
