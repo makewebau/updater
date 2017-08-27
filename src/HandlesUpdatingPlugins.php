@@ -39,7 +39,7 @@ class HandlesUpdatingPlugins
         add_action('admin_init', [$this, 'showChangelog']);
         add_filter('pre_set_site_transient_update_plugins', [$this, 'checkIfUpdateIsAvailable']);
 
-        // Replace action for what we display plugin update notification under the plugin row
+        // Replace action for plugin update notification under the plugin row
         add_action('load-plugins.php', function () {
             $pluginBasename = $this->plugin->basename();
 
@@ -108,34 +108,6 @@ class HandlesUpdatingPlugins
         return $transientData;
     }
 
-    public function getCachedVersionInfo($cacheKey = '')
-    {
-        if (empty($cacheKey)) {
-            $cacheKey = $this->getCacheKey();
-        }
-
-        $cache = get_option($cacheKey);
-
-        // If cache is expired return early
-        if (empty($cache['timeout']) || current_time('timestamp') > $cache['timeout']) {
-            return false;
-        }
-
-        return json_decode($cache['value']);
-    }
-
-    protected function setVersionInfoCache($value = '', $cacheKey = '')
-    {
-        if (empty($cacheKey)) {
-            $cacheKey = $this->getCacheKey();
-        }
-
-        update_option($cacheKey, [
-            'timeout' => strtotime('+3 hours', current_time('timestamp')),
-            'value'   => json_encode($value),
-        ]);
-    }
-
     /**
      * Updates information on the "View version x.x details" page with custom data.
      *
@@ -196,114 +168,102 @@ class HandlesUpdatingPlugins
     }
 
     /**
-     * show update nofication row -- needed for multisite subsites, because WP won't tell you otherwise!
+     * Displays update information for the plugin.
      *
-     * @param string $file
-     * @param array  $plugin
+     * @param string $file        Plugin basename.
+     * @param array  $plugin_data Plugin information.
+     *
+     * @return mixed
+     *
+     * @see wp_plugin_update_row
      */
-    public function showUpdateNotification($file, $plugin)
+    public function showUpdateNotification($file, $plugin_data)
     {
-        if (is_network_admin()) {
-            return;
+        if (!$update_info = $this->getPluginUpdateInfo()) {
+            return false;
         }
 
-        if (!current_user_can('update_plugins')) {
-            return;
+        $response = $update_info->response[$this->plugin->basename()];
+
+        if (!version_compare($this->plugin->version(), $response->new_version, '<')) {
+            return false;
         }
 
-        if (is_multisite()) {
-            return;
-        }
+        $plugin_name = $this->plugin->filteredName();
+        $details_url = self_admin_url("index.php?edd_sl_action=view_plugin_changelog&plugin=$file&slug={$response->slug}&TB_iframe=true&width=600&height=800");
 
-        if ($this->plugin->basename() != $file) {
-            return;
-        }
+        $wp_list_table = _get_list_table('WP_Plugins_List_Table');
 
-        // Remove our filter on the site transient
-        remove_filter('pre_set_site_transient_update_plugins', [$this, 'checkIfUpdateIsAvailable'], 10);
-
-        $update_cache = get_site_transient('update_plugins');
-
-        $update_cache = is_object($update_cache) ? $update_cache : new stdClass();
-
-        if (empty($update_cache->response) || empty($update_cache->response[$this->plugin->basename()])) {
-            $versionInfo = $this->getCachedVersionInfo();
-
-            if (false === $versionInfo) {
-                $versionInfo = $this->api_request('plugin_latest_version', ['slug' => $this->plugin->slug(), 'beta' => $this->beta]);
-
-                $this->setVersionInfoCache($versionInfo);
+        if (is_network_admin() || !is_multisite()) {
+            // This nested duplicate condition here is right from the latest WP core. Just a note :)
+            if (is_network_admin()) {
+                $active_class = is_plugin_active_for_network($file) ? ' active' : '';
+            } else {
+                $active_class = is_plugin_active($file) ? ' active' : '';
             }
 
-            if (!is_object($versionInfo)) {
-                return;
-            }
+            echo '<tr class="plugin-update-tr'.$active_class.'" id="'.esc_attr($response->slug.'-update').'" data-slug="'.esc_attr($response->slug).'" data-plugin="'.esc_attr($file).'"><td colspan="'.esc_attr($wp_list_table->get_column_count()).'" class="plugin-update colspanchange"><div class="update-message notice inline notice-warning notice-alt"><p>';
 
-            if (version_compare($this->plugin->version(), $versionInfo->new_version, '<')) {
-                $update_cache->response[$this->plugin->basename()] = $versionInfo;
-            }
-
-            $update_cache->last_checked = current_time('timestamp');
-            $update_cache->checked[$this->plugin->basename()] = $this->plugin->version();
-
-            set_site_transient('update_plugins', $update_cache);
-        } else {
-            $versionInfo = $update_cache->response[$this->plugin->basename()];
-        }
-
-        // Restore our filter
-        add_filter('pre_set_site_transient_update_plugins', [$this, 'checkIfUpdateIsAvailable']);
-
-        if (!empty($update_cache->response[$this->plugin->basename()]) && version_compare($this->plugin->version(), $versionInfo->new_version, '<')) {
-
-            // build a plugin list row, with update notification
-            $wp_list_table = _get_list_table('WP_Plugins_List_Table');
-            // <tr class="plugin-update-tr"><td colspan="' . $wp_list_table->get_column_count() . '" class="plugin-update colspanchange">
-            echo '<tr class="plugin-update-tr" id="'.$this->plugin->slug().'-update" data-slug="'.$this->plugin->slug().'" data-plugin="'.$this->plugin->slug().'/'.$file.'">';
-            echo '<td colspan="3" class="plugin-update colspanchange">';
-            echo '<div class="update-message notice inline notice-warning notice-alt">';
-
-            $changelog_link = self_admin_url('index.php?edd_sl_action=view_plugin_changelog&plugin='.$this->plugin->basename().'&slug='.$this->plugin->slug().'&TB_iframe=true&width=772&height=911');
-
-            if (empty($versionInfo->download_link)) {
-                printf(
-                    __('There is a new version of %1$s available. %2$sView version %3$s details%4$s.', 'easy-digital-downloads'),
-                    esc_html($versionInfo->name),
-                    '<a target="_blank" class="thickbox" href="'.esc_url($changelog_link).'">',
-                    esc_html($versionInfo->new_version),
-                    '</a>'
+            if (!current_user_can('update_plugins')) {
+                /* translators: 1: plugin name, 2: details URL, 3: additional link attributes, 4: version number */
+                printf(__('There is a new version of %1$s available. <a href="%2$s" %3$s>View version %4$s details</a>.'),
+                    $plugin_name,
+                    esc_url($details_url),
+                    sprintf(
+                        'class="thickbox open-plugin-details-modal" aria-label="%s"',
+                        /* translators: 1: plugin name, 2: version number */
+                        esc_attr(sprintf(__('View %1$s version %2$s details'), $plugin_name, $response->new_version))
+                    ),
+                    esc_html($response->new_version)
+                );
+            } elseif (empty($response->package)) {
+                /* translators: 1: plugin name, 2: details URL, 3: additional link attributes, 4: version number */
+                printf(__('There is a new version of %1$s available. <a href="%2$s" %3$s>View version %4$s details</a>. <em>Automatic update is unavailable for this plugin.</em>'),
+                    $plugin_name,
+                    esc_url($details_url),
+                    sprintf(
+                        'class="thickbox open-plugin-details-modal" aria-label="%s"',
+                        /* translators: 1: plugin name, 2: version number */
+                        esc_attr(sprintf(__('View %1$s version %2$s details'), $plugin_name, $response->new_version))
+                    ),
+                    esc_html($response->new_version)
                 );
             } else {
-                printf(
-                    __('There is a new version of %1$s available. %2$sView version %3$s details%4$s or %5$supdate now%6$s.', 'easy-digital-downloads'),
-                    esc_html($versionInfo->name),
-                    '<a target="_blank" class="thickbox" href="'.esc_url($changelog_link).'">',
-                    esc_html($versionInfo->new_version),
-                    '</a>',
-                    '<a href="'.esc_url(wp_nonce_url(self_admin_url('update.php?action=upgrade-plugin&plugin=').$this->plugin->basename(), 'upgrade-plugin_'.$this->plugin->basename())).'">',
-                    '</a>'
+                /* translators: 1: plugin name, 2: details URL, 3: additional link attributes, 4: version number, 5: update URL, 6: additional link attributes */
+                printf(__('There is a new version of %1$s available. <a href="%2$s" %3$s>View version %4$s details</a> or <a href="%5$s" %6$s>update now</a>.'),
+                    $plugin_name,
+                    esc_url($details_url),
+                    sprintf(
+                        'class="thickbox open-plugin-details-modal" aria-label="%s"',
+                        /* translators: 1: plugin name, 2: version number */
+                        esc_attr(sprintf(__('View %1$s version %2$s details'), $plugin_name, $response->new_version))
+                    ),
+                    esc_html($response->new_version),
+                    wp_nonce_url(self_admin_url('update.php?action=upgrade-plugin&plugin=').$file, 'upgrade-plugin_'.$file),
+                    sprintf(
+                        'class="update-link" aria-label="%s"',
+                        /* translators: %s: plugin name */
+                        esc_attr(sprintf(__('Update %s now'), $plugin_name))
+                    )
                 );
             }
 
-            do_action("in_plugin_update_message-{$file}", $plugin, $versionInfo);
+            do_action("in_plugin_update_message-{$file}", $plugin_data, $response);
 
-            echo '</div></td></tr>';
+            echo '</p></div></td></tr>';
         }
     }
 
+    /**
+     * Shows plugin changelog.
+     *
+     * @return void
+     *
+     * @todo Hook into the organic way of showing plugin changelogs.
+     */
     public function showChangelog()
     {
-        global $edd_plugin_data;
-
-        if (empty($_REQUEST['edd_sl_action']) || 'view_plugin_changelog' != $_REQUEST['edd_sl_action']) {
-            return;
-        }
-
-        if (empty($_REQUEST['plugin'])) {
-            return;
-        }
-
-        if (empty($_REQUEST['slug'])) {
+        if (empty($_REQUEST['edd_sl_action']) || $_REQUEST['edd_sl_action'] !== 'view_plugin_changelog') {
             return;
         }
 
@@ -311,53 +271,178 @@ class HandlesUpdatingPlugins
             wp_die(__('You do not have permission to install plugin updates', 'easy-digital-downloads'), __('Error', 'easy-digital-downloads'), ['response' => 403]);
         }
 
-        $data = $edd_plugin_data[$_REQUEST['slug']];
-        $beta = !empty($data['beta']) ? true : false;
-        $cache_key = md5('edd_plugin_'.sanitize_key($_REQUEST['plugin']).'_'.$beta.'_version_info');
-        $versionInfo = $this->getCachedVersionInfo($cache_key);
-
-        if (false === $versionInfo) {
-            $api_params = [
-                'edd_action' => 'get_version',
-                'item_name'  => isset($data['item_name']) ? $data['item_name'] : false,
-                'item_id'    => isset($data['item_id']) ? $data['item_id'] : false,
-                'author'     => isset($data['author']) ? $data['author'] : false,
-                'slug'       => $_REQUEST['slug'],
-                'url'        => home_url(),
-                'beta'       => !empty($data['beta']),
-            ];
-
-            $request = wp_remote_post($this->api_url, ['timeout' => 15, 'sslverify' => false, 'body' => $api_params]);
-
-            if (!is_wp_error($request)) {
-                $versionInfo = json_decode(wp_remote_retrieve_body($request));
-            }
-
-            if (!empty($versionInfo) && isset($versionInfo->sections)) {
-                $versionInfo->sections = maybe_unserialize($versionInfo->sections);
-            } else {
-                $versionInfo = false;
-            }
-
-            if (!empty($versionInfo)) {
-                foreach ($versionInfo->sections as $key => $section) {
-                    $versionInfo->$key = (array) $section;
-                }
-            }
-
-            $this->setVersionInfoCache($versionInfo, $cache_key);
+        if ($versionInfo = $this->getVersionInfo()) {
+            echo '<div style="background:#fff;padding:10px;">',
+                (empty($versionInfo->sections->changelog) ? 'Could not fetch the changelog.' : $versionInfo->sections->changelog),
+            '</div>', die();
         }
-
-        if (!empty($versionInfo) && isset($versionInfo->sections->changelog)) {
-            echo '<div style="background:#fff;padding:10px;">'.$versionInfo->sections->changelog.'</div>';
-        }
-
-        exit;
     }
 
+    /**
+     * Return plugin update data from either the site transient or the remote API.
+     *
+     * @return object|null
+     */
+    protected function getPluginUpdateInfo()
+    {
+        if ($cachedUpdateInfo = $this->getPluginUpdateInfoFromCache()) {
+            return $cachedUpdateInfo;
+        }
+
+        return $this->getPluginUpdateInfoFromApi();
+    }
+
+    /**
+     * Return plugin update info from the local update cache, if available.
+     *
+     * @return object|null
+     */
+    protected function getPluginUpdateInfoFromCache()
+    {
+        $updateCache = get_site_transient('update_plugins');
+
+        return empty($updateCache->response[$this->plugin->basename()])
+            ? null
+            : $updateCache;
+    }
+
+    /**
+     * Return plugin update info from the remote API.
+     *
+     * @return object|null
+     */
+    protected function getPluginUpdateInfoFromApi()
+    {
+        if ($versionInfo = $this->getVersionInfo()) {
+            $this->cachePluginUpdateInfo($updateInfo = $this->buildUpdateInfoByVersion($versionInfo));
+
+            return $updateInfo;
+        }
+    }
+
+    /**
+     * Builds update info object out of the given version info object.
+     *
+     * @param object $versionInfo
+     *
+     * @return null|object
+     */
+    protected function buildUpdateInfoByVersion($versionInfo)
+    {
+        if (!is_object($versionInfo)) {
+            return;
+        }
+
+        $basename = $this->plugin->basename();
+
+        return (object) [
+            'last_checked' => current_time('timestamp'),
+            'checked'      => [$basename => $this->plugin->version()],
+            'response'     => version_compare($this->plugin->version(), $versionInfo->new_version, '<')
+                ? [$basename => $versionInfo]
+                : [],
+        ];
+    }
+
+    /**
+     * Sets local plugins update cache.
+     *
+     * By first unhooking the "checkIfUpdateIsAvailable" and then rehooking it, so that we won't be hitting the remote
+     * API along the way.
+     *
+     * @param object|null $updateCache
+     *
+     * @return void
+     */
+    protected function cachePluginUpdateInfo($updateCache)
+    {
+        remove_filter('pre_set_site_transient_update_plugins', $updateHook = [$this, 'checkIfUpdateIsAvailable']);
+
+        set_site_transient('update_plugins', $updateCache);
+
+        add_filter('pre_set_site_transient_update_plugins', $updateHook);
+    }
+
+    /**
+     * Returns version info either from the cache or from the remote API.
+     *
+     * @return object|null
+     */
+    protected function getVersionInfo()
+    {
+        if ($versionInfo = $this->getCachedVersionInfo()) {
+            return $versionInfo;
+        }
+
+        return $this->getRemoteVersionInfo();
+    }
+
+    /**
+     * Returns version info from the local cache.
+     *
+     * @return object|null
+     */
+    protected function getCachedVersionInfo($cacheKey = '')
+    {
+        empty($cacheKey) and $cacheKey = $this->getCacheKey();
+
+        $cache = get_option($cacheKey);
+
+        // If cache is expired return early
+        if (empty($cache['timeout']) || current_time('timestamp') > $cache['timeout']) {
+            return;
+        }
+
+        return json_decode($cache['value']);
+    }
+
+    /**
+     * Returns version info from the remote API. Also, updates the local cache.
+     *
+     * @return object|null
+     */
+    protected function getRemoteVersionInfo()
+    {
+        $versionInfo = $this->apiClient->call('get_version', [
+            'slug' => $this->plugin->slug(),
+            'beta' => $this->beta,
+        ]);
+
+        // @todo: Check for failures.
+
+        $this->setVersionInfoCache($versionInfo);
+
+        return $versionInfo;
+    }
+
+    /**
+     * Updates version info in the local cache.
+     *
+     * @param string $value
+     * @param string $cacheKey
+     *
+     * @return void
+     */
+    protected function setVersionInfoCache($value = '', $cacheKey = '')
+    {
+        if (empty($cacheKey)) {
+            $cacheKey = $this->getCacheKey();
+        }
+
+        update_option($cacheKey, [
+            'timeout' => strtotime('+3 hours', current_time('timestamp')),
+            'value'   => json_encode($value),
+        ]);
+    }
+
+    /**
+     * Calculates plugin MD5 hash.
+     *
+     * @return string
+     */
     protected function getCacheKey()
     {
-        $cacheKey = md5(serialize($this->plugin->slug().$this->plugin->licenseKey().$this->beta));
+        return md5(serialize($this->plugin->slug().$this->plugin->licenseKey().$this->beta));
     }
 
     protected function displayMessage($message)
