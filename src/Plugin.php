@@ -43,6 +43,20 @@ class Plugin
         return $this->getParameter('Name');
     }
 
+    public function filteredName()
+    {
+        $allowedTags = [
+            'a'       => ['href' => [], 'title' => []],
+            'abbr'    => ['title' => []],
+            'acronym' => ['title' => []],
+            'code'    => [],
+            'em'      => [],
+            'strong'  => [],
+        ];
+
+        return wp_kses($this->name(), $allowedTags);
+    }
+
     public function basename()
     {
         return plugin_basename($this->path());
