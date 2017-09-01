@@ -85,11 +85,11 @@ class HandlesUpdatingPlugins
             }
         }
 
-        $versionInfo = $this->getCachedVersionInfo();
+        $versionInfo = $this->getVersionInfoFromCache();
 
         if ($versionInfo === false) {
             $versionInfo = $this->apiClient->getLatestVersion();
-            $this->setVersionInfoCache($versionInfo);
+            $this->cacheVersionInfo($versionInfo);
         }
 
         if (isset($versionInfo->msg)) {
@@ -132,7 +132,7 @@ class HandlesUpdatingPlugins
         $cacheKey = 'edd_api_request_'.md5(serialize($this->plugin->slug().$this->plugin->licenseKey().$this->beta));
 
         // Get the transient where we store the api request for this plugin for 24 hours
-        $eddApiRequestTransient = $this->getCachedVersionInfo($cacheKey);
+        $eddApiRequestTransient = $this->getVersionInfoFromCache($cacheKey);
 
         // If we have no transient-saved value, fetch one from the API, set a fresh transient with the API value,
         // and return that value too right now.
@@ -140,7 +140,7 @@ class HandlesUpdatingPlugins
             $eddApiRequestTransient = $this->apiClient->getPluginInfo();
 
             // Expires in 3 hours
-            $this->setVersionInfoCache($response, $eddApiRequestTransient);
+            $this->cacheVersionInfo($response, $eddApiRequestTransient);
         }
 
         // Convert sections into an associative array, since we're getting an object, but Core expects an array.
@@ -179,7 +179,7 @@ class HandlesUpdatingPlugins
      */
     public function showUpdateNotification($file, $plugin_data)
     {
-        if (!$update_info = $this->getPluginUpdateInfo()) {
+        if (!$update_info = $this->getUpdateInfo()) {
             return false;
         }
 
@@ -283,13 +283,13 @@ class HandlesUpdatingPlugins
      *
      * @return object|null
      */
-    protected function getPluginUpdateInfo()
+    protected function getUpdateInfo()
     {
-        if ($cachedUpdateInfo = $this->getPluginUpdateInfoFromCache()) {
+        if ($cachedUpdateInfo = $this->getUpdateInfoFromCache()) {
             return $cachedUpdateInfo;
         }
 
-        return $this->getPluginUpdateInfoFromApi();
+        return $this->getUpdateInfoFromApi();
     }
 
     /**
@@ -297,7 +297,7 @@ class HandlesUpdatingPlugins
      *
      * @return object|null
      */
-    protected function getPluginUpdateInfoFromCache()
+    protected function getUpdateInfoFromCache()
     {
         $updateCache = get_site_transient('update_plugins');
 
@@ -311,13 +311,32 @@ class HandlesUpdatingPlugins
      *
      * @return object|null
      */
-    protected function getPluginUpdateInfoFromApi()
+    protected function getUpdateInfoFromApi()
     {
         if ($versionInfo = $this->getVersionInfo()) {
-            $this->cachePluginUpdateInfo($updateInfo = $this->buildUpdateInfoByVersion($versionInfo));
+            $this->cacheUpdateInfo($updateInfo = $this->buildUpdateInfoByVersion($versionInfo));
 
             return $updateInfo;
         }
+    }
+
+    /**
+     * Sets local plugins update cache.
+     *
+     * By first unhooking the "checkIfUpdateIsAvailable" and then rehooking it, so that we won't be hitting the remote
+     * API along the way.
+     *
+     * @param object|null $updateCache
+     *
+     * @return void
+     */
+    protected function cacheUpdateInfo($updateCache)
+    {
+        remove_filter('pre_set_site_transient_update_plugins', $updateHook = [$this, 'checkIfUpdateIsAvailable']);
+
+        set_site_transient('update_plugins', $updateCache);
+
+        add_filter('pre_set_site_transient_update_plugins', $updateHook);
     }
 
     /**
@@ -345,46 +364,29 @@ class HandlesUpdatingPlugins
     }
 
     /**
-     * Sets local plugins update cache.
-     *
-     * By first unhooking the "checkIfUpdateIsAvailable" and then rehooking it, so that we won't be hitting the remote
-     * API along the way.
-     *
-     * @param object|null $updateCache
-     *
-     * @return void
-     */
-    protected function cachePluginUpdateInfo($updateCache)
-    {
-        remove_filter('pre_set_site_transient_update_plugins', $updateHook = [$this, 'checkIfUpdateIsAvailable']);
-
-        set_site_transient('update_plugins', $updateCache);
-
-        add_filter('pre_set_site_transient_update_plugins', $updateHook);
-    }
-
-    /**
      * Returns version info either from the cache or from the remote API.
      *
      * @return object|null
      */
     protected function getVersionInfo()
     {
-        if ($versionInfo = $this->getCachedVersionInfo()) {
+        if ($versionInfo = $this->getVersionInfoFromCache()) {
             return $versionInfo;
         }
 
-        return $this->getRemoteVersionInfo();
+        return $this->getVersionInfoFromApi();
     }
 
     /**
      * Returns version info from the local cache.
      *
-     * @return object|null
+     * @param string|null $cacheKey
+     *
+     * @return null|object
      */
-    protected function getCachedVersionInfo($cacheKey = '')
+    protected function getVersionInfoFromCache($cacheKey = null)
     {
-        empty($cacheKey) and $cacheKey = $this->getCacheKey();
+        $cacheKey === null and $cacheKey = $this->getCacheKey();
 
         $cache = get_option($cacheKey);
 
@@ -401,7 +403,7 @@ class HandlesUpdatingPlugins
      *
      * @return object|null
      */
-    protected function getRemoteVersionInfo()
+    protected function getVersionInfoFromApi()
     {
         $versionInfo = $this->apiClient->call('get_version', [
             'slug' => $this->plugin->slug(),
@@ -410,7 +412,7 @@ class HandlesUpdatingPlugins
 
         // @todo: Check for failures.
 
-        $this->setVersionInfoCache($versionInfo);
+        $this->cacheVersionInfo($versionInfo);
 
         return $versionInfo;
     }
@@ -423,7 +425,7 @@ class HandlesUpdatingPlugins
      *
      * @return void
      */
-    protected function setVersionInfoCache($value = '', $cacheKey = '')
+    protected function cacheVersionInfo($value = '', $cacheKey = '')
     {
         if (empty($cacheKey)) {
             $cacheKey = $this->getCacheKey();
@@ -436,7 +438,7 @@ class HandlesUpdatingPlugins
     }
 
     /**
-     * Calculates plugin MD5 hash.
+     * Generates plugin's MD5 hash.
      *
      * @return string
      */
