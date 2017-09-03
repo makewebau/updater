@@ -78,60 +78,17 @@ class HandlesUpdatingPlugins
     /**
      * Updates information on the "View version x.x details" page with custom data.
      *
-     * @uses api_request()
+     * @param false|object|array $result
+     * @param string             $action
+     * @param object             $args
      *
-     * @param mixed  $data
-     * @param string $action
-     * @param object $args
-     *
-     * @return object $data
+     * @return object
      */
-    public function hookPluginsApi($data, $action = '', $args = null)
+    public function hookPluginsApi($result, $action = '', $args = null)
     {
-        if ($action != 'plugin_information') {
-            return $data;
-        }
-
-        if (!isset($args->slug) || ($args->slug != $this->plugin->slug())) {
-            return $data;
-        }
-
-        $cacheKey = 'edd_api_request_'.md5(serialize($this->plugin->slug().$this->plugin->licenseKey().$this->beta));
-
-        // Get the transient where we store the api request for this plugin for 24 hours
-        $eddApiRequestTransient = $this->getVersionInfoFromCache($cacheKey);
-
-        // If we have no transient-saved value, fetch one from the API, set a fresh transient with the API value,
-        // and return that value too right now.
-        if (empty($eddApiRequestTransient)) {
-            $eddApiRequestTransient = $this->apiClient->getPluginInfo();
-
-            // Expires in 3 hours
-            $this->cacheVersionInfo($response, $eddApiRequestTransient);
-        }
-
-        // Convert sections into an associative array, since we're getting an object, but Core expects an array.
-        if (isset($eddApiRequestTransient->sections) && !is_array($eddApiRequestTransient->sections)) {
-            $newSections = [];
-
-            foreach ($eddApiRequestTransient->sections as $key => $value) {
-                $newSections[$key] = $value;
-            }
-
-            $data->sections = $newSections;
-        }
-
-        // Convert banners into an associative array, since we're getting an object, but Core expects an array.
-        if (isset($data->banners) && !is_array($data->banners)) {
-            $new_banners = [];
-            foreach ($data->banners as $key => $value) {
-                $new_banners[$key] = $value;
-            }
-
-            $data->banners = $new_banners;
-        }
-
-        return $data;
+        return $action === 'plugin_information' && isset($args->slug) && $args->slug === $this->plugin->slug()
+            ? $this->getPluginInfo()
+            : $result;
     }
 
     /**
@@ -236,6 +193,19 @@ class HandlesUpdatingPlugins
         return empty($transient->response[$basename])
             ? null
             : $transient->response[$basename];
+    }
+
+    /**
+     * Return a plugin info object to be used in as the source for "View version x.y.z details" pages.
+     *
+     * Returning theupdate object from the transient cache will do. However, one can customize the rendering of the
+     * details page by manipulating the update object within this method.
+     *
+     * @return object
+     */
+    protected function getPluginInfo()
+    {
+        return $this->getUpdateFromTransient();
     }
 
     /**
