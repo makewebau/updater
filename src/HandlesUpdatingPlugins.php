@@ -4,108 +4,75 @@ namespace MakeWeb\Updater;
 
 class HandlesUpdatingPlugins
 {
+    /**
+     * Host plugin instance.
+     *
+     * @var Plugin
+     */
     protected $plugin;
 
-    protected $beta;
+    /**
+     * Beta indicator flag.
+     *
+     * @var bool
+     */
+    protected $beta = false;
 
+    /**
+     * HandlesUpdatingPlugins constructor.
+     *
+     * @param Plugin $plugin
+     *
+     * @todo Break out the update checking functionality into its own class.
+     */
     public function __construct(Plugin $plugin)
     {
         $this->plugin = $plugin;
 
-        // We'll hard code this to false now and implement it later as needed
-        $this->beta = false;
-
         $this->apiClient = new ApiClient($plugin);
     }
 
+    /**
+     * Installs required hooks for plugin update operations.
+     *
+     * @return void
+     */
     public function boot()
     {
-        add_action('admin_init', function () {
-            global $edd_plugin_data;
-
-            $this->api_url = trailingslashit($this->plugin->updateServerUrl());
-
-            $this->api_data = [
-                'version'   => $this->plugin->version(),
-                'license'   => $this->plugin->licenseKey(),
-                'item_name' => $this->plugin->name(),
-            ];
-
-            $edd_plugin_data[$this->plugin->slug()] = $this->api_data;
-        });
-
-        // Set up hooks.
-        add_filter('plugins_api', [$this, 'pluginsApiFilter'], 10, 3);
         add_action('admin_init', [$this, 'showChangelog']);
-        add_filter('pre_set_site_transient_update_plugins', [$this, 'checkIfUpdateIsAvailable']);
+        add_filter('plugins_api', [$this, 'hookPluginsApi'], 10, 3);
+        add_filter('pre_set_site_transient_update_plugins', [$this, 'hookUpdatePluginsTransient']);
 
         // Replace action for plugin update notification under the plugin row
         add_action('load-plugins.php', function () {
-            $pluginBasename = $this->plugin->basename();
+            $basename = $this->plugin->basename();
 
-            remove_action("after_plugin_row_$pluginBasename", 'wp_plugin_update_row', 10);
-            add_action("after_plugin_row_$pluginBasename", [$this, 'showUpdateNotification'], 10, 2);
+            remove_action("after_plugin_row_$basename", 'wp_plugin_update_row', 10);
+            add_action("after_plugin_row_$basename", [$this, 'hookAfterPluginRow'], 10, 2);
         }, 25);
     }
 
     /**
      * Check for Updates at the defined API endpoint and modify the update array.
      *
-     * This function dives into the update API just when WordPress creates its update array,
-     * then adds a custom API call and injects the custom plugin data retrieved from the API.
-     * It is reassembled from parts of the native WordPress plugin update code.
-     * See wp-includes/update.php line 121 for the original wp_update_plugins() function.
+     * Dives into the update API just when WordPress creates its update array, then adds a custom API call
+     * and injects the custom plugin update information retrieved from the API into the update transient.
      *
-     * @uses api_request()
+     * @param object $transient The "update_plugins" transient object built by WP.
      *
-     * @param array $transientData Update array build by WordPress.
-     *
-     * @return array Modified update array with custom plugin data.
+     * @return object
      */
-    public function checkIfUpdateIsAvailable($transientData)
+    public function hookUpdatePluginsTransient($transient)
     {
-        if (!is_object($transientData)) {
-            $transientData = new \stdClass();
+        if ($this->updateIsInjected($transient)) {
+            return $transient;
         }
 
-        global $pagenow;
-
-        if ('plugins.php' == $pagenow && is_multisite()) {
-            return $transientData;
+        if ($latestVersion = $this->getLatestVersion() and isset($latestVersion->msg)) {
+            $this->error($latestVersion->msg);
         }
 
-        if (!empty($transientData->response) && !empty($transientData->response[$this->plugin->name()])) {
-            return $transientData;
-        }
-
-        // If the plugin has already been checked
-        if (isset($transientData->checked)) {
-            if (isset($transientData->checked[$this->plugin->name()])) {
-                return $transientData;
-            }
-        }
-
-        $versionInfo = $this->getVersionInfoFromCache();
-
-        if ($versionInfo === false) {
-            $versionInfo = $this->apiClient->getLatestVersion();
-            $this->cacheVersionInfo($versionInfo);
-        }
-
-        if (isset($versionInfo->msg)) {
-            $this->displayMessage($versionInfo->msg);
-        }
-
-        if (false !== $versionInfo && is_object($versionInfo) && isset($versionInfo->new_version)) {
-            if (version_compare($this->plugin->version(), $versionInfo->new_version, '<')) {
-                $transientData->response[$this->plugin->basename()] = $versionInfo;
-            }
-
-            $transientData->last_checked = current_time('timestamp');
-            $transientData->checked[$this->plugin->basename()] = $this->plugin->version();
-        }
-
-        return $transientData;
+        return $this->injectUpdate($transient, $latestVersion);
     }
 
     /**
@@ -119,7 +86,7 @@ class HandlesUpdatingPlugins
      *
      * @return object $data
      */
-    public function pluginsApiFilter($data, $action = '', $args = null)
+    public function hookPluginsApi($data, $action = '', $args = null)
     {
         if ($action != 'plugin_information') {
             return $data;
@@ -168,27 +135,161 @@ class HandlesUpdatingPlugins
     }
 
     /**
-     * Displays update information for the plugin.
+     * Displays update information for the plugin under its row in the plugins listing.
+     *
+     * @param string $file        Plugin basename.
+     * @param array  $pluginData  Plugin information array from the updates transient.
+     *
+     * @return mixed
+     */
+    public function hookAfterPluginRow($file, $pluginData)
+    {
+        $latestVersion = $this->getUpdateFromTransient();
+
+        return $this->updateIsAvailable($latestVersion)
+            ? $this->printUpdateNotification($file, $pluginData, $latestVersion)
+            : false;
+    }
+
+    /**
+     * Shows plugin changelog.
+     *
+     * @return void
+     *
+     * @todo Hook into the organic way of showing plugin changelogs.
+     */
+    public function showChangelog()
+    {
+        if (empty($_REQUEST['edd_sl_action']) || $_REQUEST['edd_sl_action'] !== 'view_plugin_changelog') {
+            return;
+        }
+
+        if (!current_user_can('update_plugins')) {
+            wp_die(__('You do not have permission to install plugin updates', 'easy-digital-downloads'), __('Error', 'easy-digital-downloads'), ['response' => 403]);
+        }
+
+        if ($versionInfo = $this->getVersionInfo()) {
+            echo '<div style="background:#fff;padding:10px;">',
+                (empty($versionInfo->sections->changelog) ? 'Could not fetch the changelog.' : $versionInfo->sections->changelog),
+            '</div>', die();
+        }
+    }
+
+    /**
+     * Alters the update transient object with the new version information, only if necessary.
+     *
+     * @param object $transient
+     * @param object $latestVersion
+     *
+     * @return object
+     */
+    protected function injectUpdate($transient, $latestVersion)
+    {
+        if ($this->updateIsAvailable($latestVersion)) {
+            $transient->response[$this->plugin->basename()] = $latestVersion;
+        }
+
+        return $this->markPluginAsChecked($transient);
+    }
+
+    /**
+     * Checks whether a new version is available by probing the given remote version object.
+     *
+     * @param object|null $latestVersion
+     *
+     * @return bool
+     */
+    protected function updateIsAvailable($latestVersion = null)
+    {
+        $latestVersion or $latestVersion = $this->getUpdateFromTransient();
+
+        return isset($latestVersion->new_version) &&
+            version_compare($this->plugin->version(), $latestVersion->new_version, '<');
+    }
+
+    /**
+     * Marks plugin as "checked" in the update transient object. Also touches the timestamp.
+     *
+     * @param object $transient
+     *
+     * @return object
+     */
+    protected function markPluginAsChecked($transient)
+    {
+        $transient->checked[$this->plugin->basename()] = $this->plugin->version();
+
+        $transient->last_checked = current_time('timestamp');
+
+        return $transient;
+    }
+
+    /**
+     * Return plugin update info from cached plugin update transient, if available.
+     *
+     * @return object|null
+     */
+    protected function getUpdateFromTransient()
+    {
+        $transient = get_site_transient('update_plugins');
+        $basename  = $this->plugin->basename();
+
+        return empty($transient->response[$basename])
+            ? null
+            : $transient->response[$basename];
+    }
+
+    /**
+     * Returns plugin's latest version info from the remote API.
+     *
+     * @return object|null
+     */
+    protected function getLatestVersion()
+    {
+        return $this->apiClient->getLatestVersion($this->beta);
+    }
+
+    /**
+     * Checks whether the update transient contains the plugin update info or not.
+     *
+     * @param object $transient
+     *
+     * @return bool
+     */
+    protected function updateIsInjected($transient)
+    {
+        $pluginName = $this->plugin->name();
+
+        return isset($transient->checked[$pluginName]) && !empty($transient->response[$pluginName]);
+    }
+
+    /**
+     * Displays the passed error message and exits.
+     *
+     * @param string $message
+     *
+     * @return void
+     * @todo Reimplement in WP way of showing errors.
+     */
+    protected function error($message)
+    {
+        require __DIR__.'/views/error.php';
+    }
+
+    /**
+     * Shows update notification after the plugin row in the admin plugins listing.
+     *
+     * It's a fork of WP's core `wp_plugin_update_row()` enabling us to customize the update notification.
      *
      * @param string $file        Plugin basename.
      * @param array  $plugin_data Plugin information.
+     * @param object $response    Latest version object from the update transient cache.
      *
      * @return mixed
      *
      * @see wp_plugin_update_row
      */
-    public function showUpdateNotification($file, $plugin_data)
+    protected function printUpdateNotification($file, $plugin_data, $response)
     {
-        if (!$update_info = $this->getUpdateInfo()) {
-            return false;
-        }
-
-        $response = $update_info->response[$this->plugin->basename()];
-
-        if (!version_compare($this->plugin->version(), $response->new_version, '<')) {
-            return false;
-        }
-
         $plugin_name = $this->plugin->filteredName();
         $details_url = self_admin_url("index.php?edd_sl_action=view_plugin_changelog&plugin=$file&slug={$response->slug}&TB_iframe=true&width=600&height=800");
 
@@ -202,7 +303,7 @@ class HandlesUpdatingPlugins
                 $active_class = is_plugin_active($file) ? ' active' : '';
             }
 
-            echo '<tr class="plugin-update-tr'.$active_class.'" id="'.esc_attr($response->slug.'-update').'" data-slug="'.esc_attr($response->slug).'" data-plugin="'.esc_attr($file).'"><td colspan="'.esc_attr($wp_list_table->get_column_count()).'" class="plugin-update colspanchange"><div class="update-message notice inline notice-warning notice-alt"><p>';
+            echo '<tr class="plugin-update-tr' . $active_class . '" id="' . esc_attr($response->slug . '-update') . '" data-slug="' . esc_attr($response->slug) . '" data-plugin="' . esc_attr($file) . '"><td colspan="' . esc_attr($wp_list_table->get_column_count()) . '" class="plugin-update colspanchange"><div class="update-message notice inline notice-warning notice-alt"><p>';
 
             if (!current_user_can('update_plugins')) {
                 /* translators: 1: plugin name, 2: details URL, 3: additional link attributes, 4: version number */
@@ -239,7 +340,7 @@ class HandlesUpdatingPlugins
                         esc_attr(sprintf(__('View %1$s version %2$s details'), $plugin_name, $response->new_version))
                     ),
                     esc_html($response->new_version),
-                    wp_nonce_url(self_admin_url('update.php?action=upgrade-plugin&plugin=').$file, 'upgrade-plugin_'.$file),
+                    wp_nonce_url(self_admin_url('update.php?action=upgrade-plugin&plugin=') . $file, 'upgrade-plugin_' . $file),
                     sprintf(
                         'class="update-link" aria-label="%s"',
                         /* translators: %s: plugin name */
@@ -248,207 +349,9 @@ class HandlesUpdatingPlugins
                 );
             }
 
-            do_action("in_plugin_update_message-{$file}", $plugin_data, $response);
+            do_action("in_plugin_update_message-$file", $plugin_data, $response);
 
             echo '</p></div></td></tr>';
         }
-    }
-
-    /**
-     * Shows plugin changelog.
-     *
-     * @return void
-     *
-     * @todo Hook into the organic way of showing plugin changelogs.
-     */
-    public function showChangelog()
-    {
-        if (empty($_REQUEST['edd_sl_action']) || $_REQUEST['edd_sl_action'] !== 'view_plugin_changelog') {
-            return;
-        }
-
-        if (!current_user_can('update_plugins')) {
-            wp_die(__('You do not have permission to install plugin updates', 'easy-digital-downloads'), __('Error', 'easy-digital-downloads'), ['response' => 403]);
-        }
-
-        if ($versionInfo = $this->getVersionInfo()) {
-            echo '<div style="background:#fff;padding:10px;">',
-                (empty($versionInfo->sections->changelog) ? 'Could not fetch the changelog.' : $versionInfo->sections->changelog),
-            '</div>', die();
-        }
-    }
-
-    /**
-     * Return plugin update data from either the site transient or the remote API.
-     *
-     * @return object|null
-     */
-    protected function getUpdateInfo()
-    {
-        if ($cachedUpdateInfo = $this->getUpdateInfoFromCache()) {
-            return $cachedUpdateInfo;
-        }
-
-        return $this->getUpdateInfoFromApi();
-    }
-
-    /**
-     * Return plugin update info from the local update cache, if available.
-     *
-     * @return object|null
-     */
-    protected function getUpdateInfoFromCache()
-    {
-        $updateCache = get_site_transient('update_plugins');
-
-        return empty($updateCache->response[$this->plugin->basename()])
-            ? null
-            : $updateCache;
-    }
-
-    /**
-     * Return plugin update info from the remote API.
-     *
-     * @return object|null
-     */
-    protected function getUpdateInfoFromApi()
-    {
-        if ($versionInfo = $this->getVersionInfo()) {
-            $this->cacheUpdateInfo($updateInfo = $this->buildUpdateInfoByVersion($versionInfo));
-
-            return $updateInfo;
-        }
-    }
-
-    /**
-     * Sets local plugins update cache.
-     *
-     * By first unhooking the "checkIfUpdateIsAvailable" and then rehooking it, so that we won't be hitting the remote
-     * API along the way.
-     *
-     * @param object|null $updateCache
-     *
-     * @return void
-     */
-    protected function cacheUpdateInfo($updateCache)
-    {
-        remove_filter('pre_set_site_transient_update_plugins', $updateHook = [$this, 'checkIfUpdateIsAvailable']);
-
-        set_site_transient('update_plugins', $updateCache);
-
-        add_filter('pre_set_site_transient_update_plugins', $updateHook);
-    }
-
-    /**
-     * Builds update info object out of the given version info object.
-     *
-     * @param object $versionInfo
-     *
-     * @return null|object
-     */
-    protected function buildUpdateInfoByVersion($versionInfo)
-    {
-        if (!is_object($versionInfo)) {
-            return;
-        }
-
-        $basename = $this->plugin->basename();
-
-        return (object) [
-            'last_checked' => current_time('timestamp'),
-            'checked'      => [$basename => $this->plugin->version()],
-            'response'     => version_compare($this->plugin->version(), $versionInfo->new_version, '<')
-                ? [$basename => $versionInfo]
-                : [],
-        ];
-    }
-
-    /**
-     * Returns version info either from the cache or from the remote API.
-     *
-     * @return object|null
-     */
-    protected function getVersionInfo()
-    {
-        if ($versionInfo = $this->getVersionInfoFromCache()) {
-            return $versionInfo;
-        }
-
-        return $this->getVersionInfoFromApi();
-    }
-
-    /**
-     * Returns version info from the local cache.
-     *
-     * @param string|null $cacheKey
-     *
-     * @return null|object
-     */
-    protected function getVersionInfoFromCache($cacheKey = null)
-    {
-        $cacheKey === null and $cacheKey = $this->getCacheKey();
-
-        $cache = get_option($cacheKey);
-
-        // If cache is expired return early
-        if (empty($cache['timeout']) || current_time('timestamp') > $cache['timeout']) {
-            return;
-        }
-
-        return json_decode($cache['value']);
-    }
-
-    /**
-     * Returns version info from the remote API. Also, updates the local cache.
-     *
-     * @return object|null
-     */
-    protected function getVersionInfoFromApi()
-    {
-        $versionInfo = $this->apiClient->call('get_version', [
-            'slug' => $this->plugin->slug(),
-            'beta' => $this->beta,
-        ]);
-
-        // @todo: Check for failures.
-
-        $this->cacheVersionInfo($versionInfo);
-
-        return $versionInfo;
-    }
-
-    /**
-     * Updates version info in the local cache.
-     *
-     * @param string $value
-     * @param string $cacheKey
-     *
-     * @return void
-     */
-    protected function cacheVersionInfo($value = '', $cacheKey = '')
-    {
-        if (empty($cacheKey)) {
-            $cacheKey = $this->getCacheKey();
-        }
-
-        update_option($cacheKey, [
-            'timeout' => strtotime('+3 hours', current_time('timestamp')),
-            'value'   => json_encode($value),
-        ]);
-    }
-
-    /**
-     * Generates plugin's MD5 hash.
-     *
-     * @return string
-     */
-    protected function getCacheKey()
-    {
-        return md5(serialize($this->plugin->slug().$this->plugin->licenseKey().$this->beta));
-    }
-
-    protected function displayMessage($message)
-    {
-        require __DIR__.'/views/error.php';
     }
 }
