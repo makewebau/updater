@@ -112,7 +112,7 @@ class ApiClient
 
     public function getLatestVersion($beta = false)
     {
-        return $this->call('get_version', [$beta => false]);
+        return $this->call('get_version', ['beta' => $beta]);
     }
 
     protected function handleErrorResponse(WP_Error $error)
