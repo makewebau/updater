@@ -176,11 +176,19 @@ class HandlesUpdatingPlugins
      * Returning theupdate object from the transient cache will do. However, one can customize the rendering of the
      * details page by manipulating the update object within this method.
      *
+     * Here's a list of accepted keys to customize the plugin info page:
+     * name, slug, version, requires, tested, rating, upgrade_notice, num_ratings, downloaded, active_installs,
+     * homepage, last_updated, author, sections, banners
+     *
      * @return object
      */
     protected function getPluginInfo()
     {
-        return $this->getUpdateFromTransient();
+        $update = $this->getUpdateFromTransient();
+
+        $update->author = $this->plugin->formattedVendorName();
+
+        return $update;
     }
 
     /**

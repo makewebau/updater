@@ -92,6 +92,11 @@ class Plugin
         return $this->getParameter('AuthorName');
     }
 
+    public function formattedVendorName()
+    {
+        return sprintf('<a href="%s">%s</a>', $this->updateServerUrl(), $this->vendorName());
+    }
+
     public function vendorSlug()
     {
         return sanitize_title_with_dashes($this->vendorName());
