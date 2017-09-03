@@ -39,7 +39,6 @@ class HandlesUpdatingPlugins
      */
     public function boot()
     {
-        add_action('admin_init', [$this, 'showChangelog']);
         add_filter('plugins_api', [$this, 'hookPluginsApi'], 10, 3);
         add_filter('pre_set_site_transient_update_plugins', [$this, 'hookUpdatePluginsTransient']);
 
@@ -106,30 +105,6 @@ class HandlesUpdatingPlugins
         return $this->updateIsAvailable($latestVersion)
             ? $this->printUpdateNotification($file, $pluginData, $latestVersion)
             : false;
-    }
-
-    /**
-     * Shows plugin changelog.
-     *
-     * @return void
-     *
-     * @todo Hook into the organic way of showing plugin changelogs.
-     */
-    public function showChangelog()
-    {
-        if (empty($_REQUEST['edd_sl_action']) || $_REQUEST['edd_sl_action'] !== 'view_plugin_changelog') {
-            return;
-        }
-
-        if (!current_user_can('update_plugins')) {
-            wp_die(__('You do not have permission to install plugin updates', 'easy-digital-downloads'), __('Error', 'easy-digital-downloads'), ['response' => 403]);
-        }
-
-        if ($versionInfo = $this->getVersionInfo()) {
-            echo '<div style="background:#fff;padding:10px;">',
-                (empty($versionInfo->sections->changelog) ? 'Could not fetch the changelog.' : $versionInfo->sections->changelog),
-            '</div>', die();
-        }
     }
 
     /**
@@ -261,7 +236,7 @@ class HandlesUpdatingPlugins
     protected function printUpdateNotification($file, $plugin_data, $response)
     {
         $plugin_name = $this->plugin->filteredName();
-        $details_url = self_admin_url("index.php?edd_sl_action=view_plugin_changelog&plugin=$file&slug={$response->slug}&TB_iframe=true&width=600&height=800");
+        $details_url = self_admin_url("plugin-install.php?tab=plugin-information&plugin={$response->slug}&section=changelog&TB_iframe=true&width=600&height=800");
 
         $wp_list_table = _get_list_table('WP_Plugins_List_Table');
 
