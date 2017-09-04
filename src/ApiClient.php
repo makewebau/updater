@@ -61,9 +61,10 @@ class ApiClient
 
         $requestData = array_merge([
             'edd_action' => $action,
-            'license'    => $this->plugin->licenseKey(),
             'item_name'  => $this->plugin->name(),
+            'slug'       => $this->plugin->slug(),
             'version'    => $this->plugin->version(),
+            'license'    => $this->plugin->licenseKey(),
         ], $requestData);
 
         $response = wp_remote_post($this->plugin->updateServerUrl(), [
@@ -109,9 +110,9 @@ class ApiClient
         ]);
     }
 
-    public function getLatestVersion()
+    public function getLatestVersion($beta = false)
     {
-        return $this->call('get_version');
+        return $this->call('get_version', ['beta' => $beta]);
     }
 
     protected function handleErrorResponse(WP_Error $error)
