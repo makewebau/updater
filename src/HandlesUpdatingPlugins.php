@@ -41,6 +41,9 @@ class HandlesUpdatingPlugins
     {
         add_filter('plugins_api', [$this, 'hookPluginsApi'], 10, 3);
         add_filter('pre_set_site_transient_update_plugins', [$this, 'hookUpdatePluginsTransient']);
+
+        // Allow connecting to locally hosted plugin servers if in debug mode
+        WP_DEBUG and add_filter('http_request_host_is_external', '__return_true');
     }
 
     /**
@@ -185,9 +188,9 @@ class HandlesUpdatingPlugins
      */
     protected function updateIsInjected($transient)
     {
-        $pluginName = $this->plugin->name();
+        $basename = $this->plugin->basename();
 
-        return isset($transient->checked[$pluginName]) && !empty($transient->response[$pluginName]);
+        return isset($transient->checked[$basename]) && !empty($transient->response[$basename]);
     }
 
     /**
