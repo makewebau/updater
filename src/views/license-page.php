@@ -3,6 +3,9 @@
         display: block;
         font-size: 1rem;
     }
+    h2 small a {
+        text-decoration: none;
+    }
     .license-key-row {
         padding-top: 10px;
     }
@@ -19,7 +22,7 @@
         color: gray;
     }
 </style>
-<div class="wrap widefat">
+<div class="wrap">
     <h2>
         <b><?php _e($plugin->vendorName()); ?></b> Plugin Licenses
 
