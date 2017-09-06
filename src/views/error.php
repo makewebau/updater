@@ -1,6 +1,3 @@
 <div class="error">
-    <p>
-        <?= $message ?>
-    </p>
+    <p><?= $message ?></p>
 </div>
-

@@ -1,41 +1,49 @@
-<div class="license-key-row">
-    <form method="post" action="options.php">
-        <?php settings_fields($plugin->optionsGroupName()); ?>
-        <div class="plugin-title-container">
-            <h3> <?php _e($plugin->name()) ?> </h3>
+<?php $activated = $plugin->status() === 'valid' ?>
+
+<tr class="<?= $activated ? 'active' : 'inactive' ?>">
+    <td class="plugin-title column-primary">
+        <b><?php _e($plugin->name()) ?></b>
+
+        <div class="license-status<?= $activated ? ' active' : ' inactive' ?>">
+            <?= $activated ? 'Active' : 'Not active' ?>
         </div>
-        <div class="license-key-input-container">
-            <input
-                id="<?= esc_attr_e($plugin->licenseKeyFieldName()) ?>"
-                name="<?= esc_attr_e($plugin->licenseKeyFieldName()) ?>"
-                type="text"
-                class="regular-text"
-                value="<?php esc_attr_e($plugin->licenseKey()); ?>"
-                placeholder="Enter your license key."
-            />
+    </td>
+
+    <td class="column-description desc">
+        <div class="plugin-description">
+            <p><?php _e($plugin->description()) ?></p>
         </div>
-        <div class="activate-button-container">
-            <?php if ($plugin->status() !== false && $plugin->status() == 'valid') {
-    ?>
-                <span style="color:green;"><?php _e('active'); ?></span>
-                <?php wp_nonce_field($plugin->activationActionName(), $plugin->activationNonceKey()); ?>
-                <input
-                    type="submit"
-                    class="button-secondary"
-                    name="edd_license_deactivate"
-                    value="<?php _e('Deactivate License') ?>"
-                />
-            <?php
-} else {
-        wp_nonce_field($plugin->activationActionName(), $plugin->activationNonceKey()); ?>
-                <input
-                    type="submit"
-                    class="button-secondary"
-                    name="edd_license_activate"
-                    value="<?php _e('Activate License'); ?>"
-                />
-            <?php
-    } ?>
+
+        <div class="second plugin-version-author-uri">
+            Version <?php _e($plugin->version()) ?>
+            <?php if ($url = $plugin->url()): ?>
+            | <a href="<?= esc_url($url) ?>" target="_blank">Visit plugin site</a>
+            <?php endif; ?>
         </div>
-    </form>
-</div>
+    </td>
+
+    <td class="column-license">
+        <div class="license-key-row">
+            <form method="post" action="options.php">
+                <?php settings_fields($plugin->optionsGroupName()); ?>
+
+                <span class="license-key-input-container">
+                    <input type="text"
+                        class="regular-text"
+                        placeholder="Enter your license key..."
+                        id="<?php esc_attr_e($plugin->licenseKeyFieldName()) ?>"
+                        name="<?php esc_attr_e($plugin->licenseKeyFieldName()) ?>"
+                        value="<?php esc_attr_e($plugin->licenseKey()); ?>"/>
+                </span>
+
+                <span class="activate-button-container">
+                    <?php wp_nonce_field($plugin->activationActionName(), $plugin->activationNonceKey()); ?>
+                    <input type="submit"
+                           class="button-secondary"
+                           name="<?= $activated ? 'edd_license_deactivate' : 'edd_license_activate' ?>"
+                           value="<?= $activated ? 'Deactivate' : 'Activate' ?>"/>
+                </span>
+            </form>
+        </div>
+    </td>
+</tr>

@@ -38,6 +38,11 @@ class Plugin
         return $this->getParameter('AuthorURI');
     }
 
+    public function url()
+    {
+        return $this->getParameter('PluginURI');
+    }
+
     public function name()
     {
         return $this->getParameter('Name');
@@ -60,6 +65,11 @@ class Plugin
     public function basename()
     {
         return plugin_basename($this->path());
+    }
+
+    public function description()
+    {
+        return $this->getParameter('Description');
     }
 
     public function path()
@@ -174,10 +184,12 @@ class Plugin
     {
         if (is_null($this->data)) {
             $this->data = get_file_data($this->path(), [
-                'Name'       => 'Plugin Name',
-                'AuthorName' => 'Author',
-                'AuthorURI'  => 'Author URI',
-                'Version'    => 'Version',
+                'Name'        => 'Plugin Name',
+                'AuthorName'  => 'Author',
+                'AuthorURI'   => 'Author URI',
+                'PluginURI'   => 'Plugin URI',
+                'Version'     => 'Version',
+                'Description' => 'Description',
             ]);
         }
 
