@@ -61,16 +61,16 @@ class ApiClient
 
         $requestData = array_merge([
             'edd_action' => $action,
-            'item_name'  => $this->plugin->name(),
-            'slug'       => $this->plugin->slug(),
-            'version'    => $this->plugin->version(),
-            'license'    => $this->plugin->licenseKey(),
+            'item_name' => $this->plugin->name(),
+            'slug' => $this->plugin->slug(),
+            'version' => $this->plugin->version(),
+            'license' => $this->plugin->licenseKey(),
         ], $requestData);
 
         $response = wp_remote_post($this->plugin->updateServerUrl(), [
-            'timeout'   => 15,
+            'timeout' => 120,
             'sslverify' => false,
-            'body'      => $requestData,
+            'body' => $requestData,
         ]);
 
         if (is_wp_error($response)) {
@@ -101,7 +101,7 @@ class ApiClient
     public function getPluginInfo()
     {
         return $this->call('plugin_information', [
-            'slug'   => $this->plugin->slug(),
+            'slug' => $this->plugin->slug(),
             'is_ssl' => is_ssl(),
             'fields' => [
                 'banners' => [],
