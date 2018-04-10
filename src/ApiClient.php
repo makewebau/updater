@@ -62,16 +62,17 @@ class ApiClient
 
         $requestData = array_merge([
             'edd_action' => $action,
-            'item_name' => $this->plugin->name(),
-            'slug' => $this->plugin->slug(),
-            'version' => $this->plugin->version(),
-            'license' => $this->plugin->licenseKey(),
+            'item_name'  => $this->plugin->name(),
+            'slug'       => $this->plugin->slug(),
+            'version'    => $this->plugin->version(),
+            'license'    => $this->plugin->licenseKey(),
         ], $requestData);
+
         try {
             $response = wp_remote_post($this->plugin->updateServerUrl(), [
-                'timeout' => $this->timeout,
+                'timeout'   => $this->timeout,
                 'sslverify' => false,
-                'body' => $requestData,
+                'body'      => $requestData,
             ]);
         } catch (\Exception $e) {
             return $this->handleExceptionResponse($e);
@@ -93,7 +94,7 @@ class ApiClient
     public function getPluginInfo()
     {
         return $this->call('plugin_information', [
-            'slug' => $this->plugin->slug(),
+            'slug'   => $this->plugin->slug(),
             'is_ssl' => is_ssl(),
             'fields' => [
                 'banners' => [],
@@ -136,7 +137,7 @@ class ApiClient
 
     protected function handleErrorResponse($code, $message = null, $body = null)
     {
-        return (new Response)
+        return (new Response())
             ->withCode($code)
             ->withMessage($message)
             ->withBody($body);
