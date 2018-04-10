@@ -44,7 +44,7 @@ abstract class TestCase extends BaseTestCase
             return;
         }
 
-        $server = new class {
+        $server = new class() {
             public static function start()
             {
                 $url = getenv('TEST_SERVER_URL') ?: '127.0.0.1:'.getenv('TEST_SERVER_PORT');
