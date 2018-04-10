@@ -182,7 +182,7 @@ class HandlesUpdatingPlugins
             return $this->error('Error updating '.$this->plugin->name().' - '.$latestVersion->message.' '.$latestVersion->body);
         }
 
-        return $response->version->new_version;
+        return $response->version;
     }
 
     /**

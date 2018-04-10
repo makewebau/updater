@@ -18,6 +18,6 @@ class HandlesUpdatingPluginsTest extends TestCase
             }
         };
 
-        $this->assertEquals('1.2.3', $handler->callGetLatestVersion());
+        $this->assertEquals('1.2.3', $handler->callGetLatestVersion()->new_version);
     }
 }
