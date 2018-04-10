@@ -2,5 +2,6 @@
 
 require __DIR__.'/../vendor/autoload.php';
 
-// Now call the bootstrap method of WP Mock
-WP_Mock::bootstrap();
+(new MakeWeb\WordpressTestEnvironment\WordpressTestEnvironment)
+    ->withEnvPath(__DIR__.'/..')
+    ->boot();

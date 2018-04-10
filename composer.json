@@ -1,5 +1,23 @@
 {
     "name": "makeweb/updater",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "/Users/Studio/Code/packages/makeweb/wordpress-test-environment"
+        },
+        {
+            "type": "package",
+            "package": {
+                "name": "wordpress/wordpress",
+                "version": "4.9.5",
+                "source": {
+                    "url": "/Users/Studio/Code/wordpress-core/.git",
+                    "type": "git",
+                    "reference": "4.9.5"
+                }
+            }
+        }
+    ],
     "autoload": {
         "psr-4": {
             "MakeWeb\\Updater\\": "src/"
@@ -9,9 +27,10 @@
     },
     "require-dev": {
         "phpunit/phpunit": "6.*",
-        "10up/wp_mock": "dev-dev",
         "illuminate/support": "^5.4",
-        "symfony/var-dumper": "^3.3"
+        "symfony/var-dumper": "^3.3",
+        "laravel/lumen-framework": "5.5.*",
+        "makeweb/wordpress-test-environment": "1.0.*"
     },
     "autoload-dev": {
         "psr-4": {
