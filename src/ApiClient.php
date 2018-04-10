@@ -150,7 +150,7 @@ class ApiClient
 
     protected function buildResponseObject($response)
     {
-        return (new Response)
+        return (new Response())
             ->withCode($response['response']['code'])
             ->withMessage($response['response']['message'])
             ->withVersion($this->buildVersionObject($response));
