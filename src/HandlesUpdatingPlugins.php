@@ -111,6 +111,10 @@ class HandlesUpdatingPlugins
      */
     protected function updateIsAvailable($latestVersion = null)
     {
+        if ($latestVersion->isError()) {
+            return $this->error('Error updating '.$this->plugin->name().' - '.$latestVersion->message.' '.$latestVersion->body);
+        }
+
         $latestVersion or $latestVersion = $this->getUpdateFromTransient();
 
         return isset($latestVersion->new_version) &&

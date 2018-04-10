@@ -20,6 +20,7 @@ class ApiClient
     private $version = '';
     private $wp_override = false;
     private $cache_key = '';
+    private $timeout = 120;
 
     /**
      * Disable SSL verification in order to prevent download update failures.
@@ -66,15 +67,22 @@ class ApiClient
             'version' => $this->plugin->version(),
             'license' => $this->plugin->licenseKey(),
         ], $requestData);
-
-        $response = wp_remote_post($this->plugin->updateServerUrl(), [
-            'timeout' => 120,
-            'sslverify' => false,
-            'body' => $requestData,
-        ]);
+        try {
+            $response = wp_remote_post($this->plugin->updateServerUrl(), [
+                'timeout' => $this->timeout,
+                'sslverify' => false,
+                'body' => $requestData,
+            ]);
+        } catch (\Exception $e) {
+            return $this->handleExceptionResponse($e);
+        }
 
         if (is_wp_error($response)) {
-            return $this->handleErrorResponse($response);
+            return $this->handleWPErrorResponse($response);
+        }
+
+        if ($this->isError($response)) {
+            return $this->handleErrorResponse($response['response']['code'], $response['response']['message'], $response['body']);
         }
 
         $response = json_decode(wp_remote_retrieve_body($response));
@@ -84,7 +92,6 @@ class ApiClient
         } else {
             $response = false;
         }
-
         if ($response && isset($response->banners)) {
             $response->banners = maybe_unserialize($response->banners);
         }
@@ -115,7 +122,12 @@ class ApiClient
         return $this->call('get_version', ['beta' => $beta]);
     }
 
-    protected function handleErrorResponse(WP_Error $error)
+    public function setTimeout($seconds)
+    {
+        $this->timeout = $seconds;
+    }
+
+    protected function handleWPErrorResponse(WP_Error $error)
     {
         $errors = [];
 
@@ -123,8 +135,30 @@ class ApiClient
             $errors[] = $key.': '.$message[0];
         }
 
-        throw new \Exception(
-            implode($errors, "\n")
-        );
+        return $this->handleErrorResponse(500, implode("\n", $errors));
+    }
+
+    protected function isError($response)
+    {
+        if (isset($response['response'])) {
+            if (isset($response['response']['code'])) {
+                return $response['response']['code'] >= 400;
+            }
+        }
+
+        return false;
+    }
+
+    protected function handleErrorResponse($code, $message = null, $body = null)
+    {
+        return (new Response)
+            ->withCode($code)
+            ->withMessage($message)
+            ->withBody($body);
+    }
+
+    protected function handleExceptionResponse(\Exception $e)
+    {
+        throw $e;
     }
 }
