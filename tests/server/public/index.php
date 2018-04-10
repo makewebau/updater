@@ -16,11 +16,11 @@ function build_response($response = [], $code = null)
 // Test plugin
 $testPluginResponse = function () {
     return build_response([
-        'new_version' => '1.2.3',
-        'sections' => '',
+        'new_version'    => '1.2.3',
+        'sections'       => '',
         'stable_version' => '1.2.3',
-        'name' => 'Test Plugin',
-        'slug' => 'test-plugin',
+        'name'           => 'Test Plugin',
+        'slug'           => 'test-plugin',
     ]);
 };
 $app->router->get('test-plugin', $testPluginResponse);
@@ -29,10 +29,10 @@ $app->router->post('test-plugin', $testPluginResponse);
 // No such plugin
 $testPluginResponse = function () {
     return build_response([
-        'new_version' => false,
-        'sections' => '',
+        'new_version'    => false,
+        'sections'       => '',
         'stable_version' => false,
-        'slug' => 'no-such-plugin',
+        'slug'           => 'no-such-plugin',
     ]);
 };
 

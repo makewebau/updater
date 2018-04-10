@@ -22,10 +22,10 @@ class ApiClientTest extends TestCase
         $this->assertInstanceOf(Version::class, $response->version);
 
         foreach ([
-            'new_version' => '1.2.3',
+            'new_version'    => '1.2.3',
             'stable_version' => '1.2.3',
-            'name' => 'Test Plugin',
-            'slug' => 'test-plugin',
+            'name'           => 'Test Plugin',
+            'slug'           => 'test-plugin',
         ] as $key => $value) {
             $this->assertEquals($value, $response->version->$key);
         }
