@@ -164,7 +164,7 @@ class HandlesActivatingPlugins
         if ($license_data->license == 'valid') {
             echo 'valid';
             exit;
-            // this license is still valid
+        // this license is still valid
         } else {
             echo 'invalid';
             exit;
