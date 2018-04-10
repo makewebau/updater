@@ -10,6 +10,8 @@ class Response
 
     public $body;
 
+    public $version;
+
     public function withCode($code)
     {
         return $this->setFluently('code', $code);
@@ -23,6 +25,11 @@ class Response
     public function withBody($body)
     {
         return $this->setFluently('body', $body);
+    }
+
+    public function withVersion($version)
+    {
+        return $this->setFluently('version', $version);
     }
 
     public function setFluently($propertyName, $value)

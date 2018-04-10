@@ -111,10 +111,6 @@ class HandlesUpdatingPlugins
      */
     protected function updateIsAvailable($latestVersion = null)
     {
-        if ($latestVersion->isError()) {
-            return $this->error('Error updating '.$this->plugin->name().' - '.$latestVersion->message.' '.$latestVersion->body);
-        }
-
         $latestVersion or $latestVersion = $this->getUpdateFromTransient();
 
         return isset($latestVersion->new_version) &&
@@ -180,7 +176,13 @@ class HandlesUpdatingPlugins
      */
     protected function getLatestVersion()
     {
-        return $this->apiClient->getLatestVersion($this->beta);
+        $response = $this->apiClient->getLatestVersion($this->beta);
+
+        if ($response->isError()) {
+            return $this->error('Error updating '.$this->plugin->name().' - '.$latestVersion->message.' '.$latestVersion->body);
+        }
+
+        return $response->version->new_version;
     }
 
     /**

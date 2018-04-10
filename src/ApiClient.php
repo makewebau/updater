@@ -85,22 +85,7 @@ class ApiClient
             return $this->handleErrorResponse($response['response']['code'], $response['response']['message'], $response['body']);
         }
 
-        $response = json_decode(wp_remote_retrieve_body($response));
-
-        if ($response && isset($response->sections)) {
-            $response->sections = maybe_unserialize($response->sections);
-        } else {
-            $response = false;
-        }
-        if ($response && isset($response->banners)) {
-            $response->banners = maybe_unserialize($response->banners);
-        }
-
-        if (!empty($response->sections)) {
-            foreach ($response->sections as $key => $section) {
-                $response->$key = (array) $section;
-            }
-        }
+        return $this->buildResponseObject($response);
 
         return $response;
     }
@@ -160,5 +145,35 @@ class ApiClient
     protected function handleExceptionResponse(\Exception $e)
     {
         throw $e;
+    }
+
+    protected function buildResponseObject($response)
+    {
+        return (new Response)
+            ->withCode($response['response']['code'])
+            ->withMessage($response['response']['message'])
+            ->withVersion($this->buildVersionObject($response));
+    }
+
+    protected function buildVersionObject($response)
+    {
+        $version = new Version(json_decode(wp_remote_retrieve_body($response)));
+
+        if ($version && isset($version->sections)) {
+            $version->sections = maybe_unserialize($version->sections);
+        } else {
+            $version = false;
+        }
+        if ($version && isset($version->banners)) {
+            $version->banners = maybe_unserialize($version->banners);
+        }
+
+        if (!empty($version->sections)) {
+            foreach ($version->sections as $key => $section) {
+                $version->$key = (array) $section;
+            }
+        }
+
+        return $version;
     }
 }
