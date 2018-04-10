@@ -7,9 +7,9 @@ use PHPUnit\Framework\TestCase as BaseTestCase;
 class TestCase extends BaseTestCase
 {
     /**
-     * Declares a global function with the given name which returns the given callback
+     * Declares a global function with the given name which returns the given callback.
      *
-     * @var $functionName string
+     * @var string
      * @var callback $callback
      */
     protected function setGlobalFunctionCallback($functionName, $callback)

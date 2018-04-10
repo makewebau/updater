@@ -1,5 +1,5 @@
 <?php
 
-/** @wordpress-plugin
+/* @wordpress-plugin
  * Plugin Name: Test Plugin
  */

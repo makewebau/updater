@@ -44,8 +44,8 @@ class ApiClientTest extends TestCase
         $this->setGlobalFunctionCallback('get_file_data', function () {
             return [
                 'AuthorURI' => 'localhost',
-                'Name' => 'Plugin Name',
-                'Version' => '1.2.3',
+                'Name'      => 'Plugin Name',
+                'Version'   => '1.2.3',
             ];
         });
 
