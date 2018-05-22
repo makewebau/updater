@@ -10,7 +10,7 @@ abstract class TestCase extends BaseTestCase
      * Declares a global function with the given name which returns the given callback.
      *
      * @var string
-     * @var callback $callback
+     * @var callable $callback
      */
     protected function setGlobalFunctionCallback($functionName, $callback)
     {
