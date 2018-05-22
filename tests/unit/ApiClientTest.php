@@ -22,10 +22,10 @@ class ApiClientTest extends TestCase
         $this->assertInstanceOf(Version::class, $response->version);
 
         foreach ([
-            'new_version'    => '1.2.3',
+            'new_version' => '1.2.3',
             'stable_version' => '1.2.3',
-            'name'           => 'Test Plugin',
-            'slug'           => 'test-plugin',
+            'name' => 'Test Plugin',
+            'slug' => 'test-plugin',
         ] as $key => $value) {
             $this->assertEquals($value, $response->version->$key);
         }
@@ -62,7 +62,6 @@ class ApiClientTest extends TestCase
         ));
 
         $apiClient->setTimeout(1);
-
         $response = $apiClient->getLatestVersion();
 
         $this->assertTrue($response->isError());
@@ -70,5 +69,8 @@ class ApiClientTest extends TestCase
         $this->assertTrue(
             Str::contains($response->message, 'http_request_failed: cURL error 28: Operation timed out after')
         );
+        global $kill_test_server;
+
+        @$kill_test_server();
     }
 }

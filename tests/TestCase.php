@@ -52,9 +52,11 @@ abstract class TestCase extends BaseTestCase
                 while (@file_get_contents("http://$url/get") === false) {
                     usleep(1000);
                 }
-                register_shutdown_function(function () use ($pid) {
-                    exec('kill '.$pid);
-                });
+                global $kill_test_server;
+                $kill_test_server = function () use ($pid) {
+                    exec('kill '.$pid.' 2>/dev/null');
+                };
+                register_shutdown_function($kill_test_server);
             }
         };
 
