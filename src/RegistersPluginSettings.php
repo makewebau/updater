@@ -14,10 +14,16 @@ class RegistersPluginSettings
     public function boot()
     {
         add_action('admin_menu', function () {
+            if (!current_user_can('manage_options')) {
+                return;
+            }
             $this->registerAdminMenu();
         });
 
         add_action('admin_init', function () {
+            if (!current_user_can('manage_options')) {
+                return;
+            }
             $this->registerSettings();
             $this->registerSettingsFields();
         });

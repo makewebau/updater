@@ -51,12 +51,12 @@ class Plugin
     public function filteredName()
     {
         $allowedTags = [
-            'a'       => ['href' => [], 'title' => []],
-            'abbr'    => ['title' => []],
+            'a' => ['href' => [], 'title' => []],
+            'abbr' => ['title' => []],
             'acronym' => ['title' => []],
-            'code'    => [],
-            'em'      => [],
-            'strong'  => [],
+            'code' => [],
+            'em' => [],
+            'strong' => [],
         ];
 
         return wp_kses($this->name(), $allowedTags);
@@ -184,11 +184,11 @@ class Plugin
     {
         if (is_null($this->data)) {
             $this->data = get_file_data($this->path(), [
-                'Name'        => 'Plugin Name',
-                'AuthorName'  => 'Author',
-                'AuthorURI'   => 'Author URI',
-                'PluginURI'   => 'Plugin URI',
-                'Version'     => 'Version',
+                'Name' => 'Plugin Name',
+                'AuthorName' => 'Author',
+                'AuthorURI' => 'Author URI',
+                'PluginURI' => 'Plugin URI',
+                'Version' => 'Version',
                 'Description' => 'Description',
             ]);
         }
