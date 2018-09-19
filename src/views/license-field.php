@@ -28,20 +28,26 @@
                 <?php settings_fields($plugin->optionsGroupName()); ?>
 
                 <span class="license-key-input-container">
+                    <input
+                        type="hidden"
+                        name="edd_license_key_action"
+                        value="<?= $activated && !empty($plugin->licenseKey()) ? 'deactivate' : 'activate' ?>"
+                        />
                     <input type="text"
                         class="regular-text"
                         placeholder="Enter your license key..."
                         id="<?php esc_attr_e($plugin->licenseKeyFieldName()) ?>"
                         name="<?php esc_attr_e($plugin->licenseKeyFieldName()) ?>"
-                        value="<?php esc_attr_e($plugin->licenseKey()); ?>"/>
+                        value="<?php esc_attr_e($plugin->licenseKey()); ?>"
+                        <?= $activated && !empty($plugin->licenseKey()) ? 'disabled' : '' ?>
+                        \>
                 </span>
 
                 <span class="activate-button-container">
                     <?php wp_nonce_field($plugin->activationActionName(), $plugin->activationNonceKey()); ?>
                     <input type="submit"
-                           class="button-secondary"
-                           name="<?= $activated ? 'edd_license_deactivate' : 'edd_license_activate' ?>"
-                           value="<?= $activated ? 'Deactivate' : 'Activate' ?>"/>
+                        class="button-secondary"
+                        value="<?= $activated && !empty($plugin->licenseKey()) ? 'Deactivate' : 'Activate' ?>"/>
                 </span>
             </form>
         </div>

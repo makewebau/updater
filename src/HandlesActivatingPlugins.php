@@ -17,62 +17,24 @@ class HandlesActivatingPlugins
     public function handleActivationButtonSubmission()
     {
         // If the activation button was not clicked we can return early
-        if (!isset($_POST[$this->plugin->licenseKeyFieldName()])) {
+        if (!isset($_POST[$this->plugin->licenseKeyFieldName()]) && !isset($_POST['edd_license_key_action'])) {
             return;
         }
-
-        // Get the new license key from the post data
-        $newLicenseKey = $_POST[$this->plugin->licenseKeyFieldName()];
-
-        // If the new license key does not match the old one
-        if ($this->plugin->licenseKey() != $newLicenseKey) {
-
-            // The user will need to reactivate their license
-            $this->plugin->deleteLicenseStatus();
-        }
-
-        // Save the new license key
-        $this->plugin->saveLicenseKey($newLicenseKey);
 
         // If the nonce key does not match we know there's something fishy afoot
         if (false == check_admin_referer($this->plugin->activationActionName(), $this->plugin->activationNonceKey())) {
             return;
         }
 
-        // Call the API on the update server
-        $response = wp_remote_post(
-            $this->plugin->updateServerUrl(), [
-                'timeout'   => 15,
-                'sslverify' => false,
-                'body'      => [
-                    'edd_action' => 'activate_license',
-                    'license'    => $newLicenseKey,
-                    'item_name'  => urlencode($this->plugin->name()),
-                    'url'        => home_url(),
-                ],
-            ]
-        );
-
-        // If we received an error we should handle it
-        if ($this->responseIsError($response)) {
-            $this->handleErrorResponse($response);
+        if ($_POST['edd_license_key_action'] == 'activate') {
+            return $this->handleActivation();
         }
 
-        // Get the license data from the response
-        $licenseData = json_decode(wp_remote_retrieve_body($response));
-
-        // If the license activation was not successful
-        if ($licenseData->success === false) {
-            $this->handleUnsuccessfulActivation($licenseData);
+        if ($_POST['edd_license_key_action'] == 'deactivate') {
+            return $this->handleDeactivation();
         }
 
-        // If we got to here the license activation must have been successful
-        // The value of $licenseData->license will be either "valid" or "invalid"
-        $this->plugin->setLicenseStatus($licenseData->license);
-
-        wp_redirect($this->plugin->licensePageUrl());
-
-        exit();
+        $this->redirectWithErrorMessage('Invalid license key action: '.$_POST['license_key_action']);
     }
 
     protected function responseIsError($response)
@@ -89,15 +51,15 @@ class HandlesActivatingPlugins
         if (is_wp_error($response)) {
             $this->redirectWithErrorMessage($response->get_error_message());
         }
-
         $this->redirectWithErrorMessage(__('An error occurred while trying to activate'.$this->plugin->name().', please try again.'));
     }
 
     protected function redirectWithErrorMessage($message)
     {
-        wp_redirect(add_query_arg([
+        wp_redirect(add_query_arg(
+            [
             'sl_activation' => 'false',
-            'message'       => urlencode($message),
+            'message' => urlencode($message),
         ],
             $this->plugin->licensePageUrl()
         ));
@@ -147,9 +109,9 @@ class HandlesActivatingPlugins
 
         $api_params = [
             'edd_action' => 'check_license',
-            'license'    => $license,
-            'item_name'  => urlencode($this->getPluginName()),
-            'url'        => home_url(),
+            'license' => $license,
+            'item_name' => urlencode($this->getPluginName()),
+            'url' => home_url(),
         ];
 
         // Call the custom API.
@@ -170,5 +132,74 @@ class HandlesActivatingPlugins
             exit;
             // this license is no longer valid
         }
+    }
+
+    protected function newLicenseKey()
+    {
+        return trim($_POST[$this->plugin->licenseKeyFieldName()]);
+    }
+
+    protected function handleActivation()
+    {
+        $this->plugin->saveLicenseKey($this->newLicenseKey());
+
+        $licenseData = $this->callApi($this->newLicenseKey(), 'activate_license');
+
+        // If we got to here the license activation must have been successful
+        // The value of $licenseData->license will be either "valid" or "invalid"
+        $this->plugin->setLicenseStatus($licenseData->license);
+
+        $this->redirect($this->plugin->licensePageUrl());
+    }
+
+    protected function handleDeactivation()
+    {
+        $licenseData = $this->callApi($this->plugin->licenseKey(), 'deactivate_license');
+
+        $this->plugin->deleteLicenseStatus();
+
+        $this->redirect($this->plugin->licensePageUrl());
+    }
+
+    protected function redirect($url)
+    {
+        wp_redirect($url);
+
+        exit();
+    }
+
+    /**
+     *  Call the API on the update server
+     **/
+    protected function callApi($licenseKey, $action)
+    {
+        $response = wp_remote_post(
+            $this->plugin->updateServerUrl(),
+            [
+                'timeout' => 60,
+                'sslverify' => false,
+                'body' => [
+                    'edd_action' => $action,
+                    'license' => $licenseKey,
+                    'item_name' => urlencode($this->plugin->name()),
+                    'url' => home_url(),
+                ],
+            ]
+        );
+
+        // If we received an error we should handle it
+        if ($this->responseIsError($response)) {
+            $this->handleErrorResponse($response);
+        }
+
+        // Get the license data from the response
+        $licenseData = json_decode(wp_remote_retrieve_body($response));
+
+        // If the license activation was not successful
+        if ($licenseData->success === false) {
+            $this->handleUnsuccessfulActivation($licenseData);
+        }
+
+        return $licenseData;
     }
 }

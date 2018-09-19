@@ -7,7 +7,7 @@
         text-decoration: none;
     }
     .license-key-row {
-        padding-top: 10px;
+        padding-top: 5px;
     }
     .activate-button-container .button-secondary {
         min-width: 90px;

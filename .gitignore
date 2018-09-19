@@ -4,3 +4,4 @@ vendor
 .env
 .env-hash
 tests/server/storage
+settings.json
