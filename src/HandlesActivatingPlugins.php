@@ -59,7 +59,7 @@ class HandlesActivatingPlugins
         wp_redirect(add_query_arg(
             [
             'sl_activation' => 'false',
-            'message' => urlencode($message),
+            'message'       => urlencode($message),
         ],
             $this->plugin->licensePageUrl()
         ));
@@ -109,9 +109,9 @@ class HandlesActivatingPlugins
 
         $api_params = [
             'edd_action' => 'check_license',
-            'license' => $license,
-            'item_name' => urlencode($this->getPluginName()),
-            'url' => home_url(),
+            'license'    => $license,
+            'item_name'  => urlencode($this->getPluginName()),
+            'url'        => home_url(),
         ];
 
         // Call the custom API.
@@ -169,20 +169,20 @@ class HandlesActivatingPlugins
     }
 
     /**
-     *  Call the API on the update server
+     *  Call the API on the update server.
      **/
     protected function callApi($licenseKey, $action)
     {
         $response = wp_remote_post(
             $this->plugin->updateServerUrl(),
             [
-                'timeout' => 60,
+                'timeout'   => 60,
                 'sslverify' => false,
-                'body' => [
+                'body'      => [
                     'edd_action' => $action,
-                    'license' => $licenseKey,
-                    'item_name' => urlencode($this->plugin->name()),
-                    'url' => home_url(),
+                    'license'    => $licenseKey,
+                    'item_name'  => urlencode($this->plugin->name()),
+                    'url'        => home_url(),
                 ],
             ]
         );
